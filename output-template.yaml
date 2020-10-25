@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'clubes-crawltweet
+
+  Sample SAM Template for clubes-crawltweet
+
+  '
+Parameters:
+  AwsAccessKey:
+    Type: String
+  AwsSecretAccessKey:
+    Type: String
+  ConsumerKey:
+    Type: String
+  ConsumerSecret:
+    Type: String
+  AccessToken:
+    Type: String
+  AccessTokenSecret:
+    Type: String
+Globals:
+  Function:
+    Timeout: 5
+Resources:
+  CrawlTweetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://clubes-crawltweet/27bec4a16f24af6a53838bf5f9482fbf
+      Handler: hello-world
+      Runtime: go1.x
+      Tracing: Active
+      Events:
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: cron(0/5 * * * ? *)
+      Environment:
+        Variables:
+          AWS_ACCEESS_KEY:
+            Ref: AwsAccessKey
+          AWS_SECRET_ACCEESS_KEY:
+            Ref: AwsSecretAccessKey
+          CONSUMER_KEY:
+            Ref: ConsumerKey
+          CONSUMER_SECRET:
+            Ref: ConsumerSecret
+          ACCESS_TOKEN:
+            Ref: AccessToken
+          ACCESS_TOKEN_SECRET:
+            Ref: AccessTokenSecret
+Outputs:
+  CrawlTweetFunction:
+    Description: First Lambda Function ARN
+    Value:
+      Fn::GetAtt:
+      - CrawlTweetFunction
+      - Arn
+  CrawlTweetFunctionIamRole:
+    Description: Implicit IAM Role created for Hello World function
+    Value:
+      Fn::GetAtt:
+      - CrawlTweetFunctionRole
+      - Arn

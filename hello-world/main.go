@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"sort"
+	"time"
 
 	"github.com/ChimeraCoder/anaconda"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -26,15 +27,14 @@ type User struct {
 type Tweet struct {
 	ID        int64  `dynamo:"tweet_id"` //パーティションキー
 	FullText  string `dynamo:"full_text"`
-	TweetedAt string `dynamo:"tweeted_at"`
+	TweetedAt int64  `dynamo:"tweeted_at"` //dynamodbでソート出来るようにUNIX時間
 	User      User   `dynamo:"user"`
 }
 
 // Tweets 構造体のスライス
 type Tweets []Tweet
 
-// 以下インタフェースを満たす
-
+// 以下インタフェースを渡してTweetIDでソート可能にするｓ
 func (t Tweets) Len() int {
 	return len(t)
 }
@@ -75,18 +75,23 @@ func crawlTweets() {
 
 	searchResult, _ := api.GetSearch("#プロクラブ", v)
 
+	// 文字列→日付に変換するレイアウト
+	var layout = "Mon Jan 2 15:04:05 +0000 2006"
+
 	for _, tweet := range searchResult.Statuses {
-		log.Println(tweet.CreatedAt)
+		tweetedTime, _ := time.Parse(layout, tweet.CreatedAt)
 		// リツイートされたものはfull_textでも'RT <ユーザ名>'が入って省略されてしまうので、その判定
 		if tweet.RetweetedStatus == nil {
-			newTweet := Tweet{tweet.Id, tweet.FullText, tweet.CreatedAt, User{tweet.User.Id, tweet.User.Name}}
+			newTweet := Tweet{tweet.Id, tweet.FullText, tweetedTime.Unix(), User{tweet.User.Id, tweet.User.Name}}
 			if err := table.Put(newTweet).Run(); err != nil {
 				log.Println(err.Error())
 			} else {
+				unix := tweetedTime.Unix()
+				log.Println(time.Unix(unix, 0))
 				log.Println("成功！")
 			}
 		} else {
-			newTweet := Tweet{tweet.Id, tweet.RetweetedStatus.FullText, tweet.CreatedAt, User{tweet.User.Id, tweet.User.Name}}
+			newTweet := Tweet{tweet.Id, tweet.RetweetedStatus.FullText, tweetedTime.Unix(), User{tweet.User.Id, tweet.User.Name}}
 			if err := table.Put(newTweet).Run(); err != nil {
 				log.Println(err.Error())
 			} else {
@@ -126,6 +131,4 @@ func crawlTweets() {
 func main() {
 	// ラムダ実行
 	lambda.Start(crawlTweets)
-	// ローカルでテストする用
-	// hello()
 }

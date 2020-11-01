@@ -5,7 +5,9 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ChimeraCoder/anaconda"
@@ -25,10 +27,12 @@ type User struct {
 
 // Tweet 参加を募集するツイート
 type Tweet struct {
-	ID        int64  `dynamo:"tweet_id"` //パーティションキー
-	FullText  string `dynamo:"full_text"`
-	TweetedAt int64  `dynamo:"tweeted_at"` //dynamodbでソート出来るようにUNIX時間
-	User      User   `dynamo:"user"`
+	ID        int64    `dynamo:"tweet_id"` //パーティションキー
+	FullText  string   `dynamo:"full_text"`
+	TweetedAt int64    `dynamo:"tweeted_at"` //dynamodbでソート出来るようにUNIX時間
+	IsClub    bool     `dynamo:"is_club"`
+	Positions []string `dynamo:"postion"`
+	User      User     `dynamo:"user"`
 }
 
 // Tweets 構造体のスライス
@@ -53,6 +57,9 @@ func crawlTweets() {
 	const tweetsLimit = 100
 
 	const tableName = "proclub_tweets"
+
+	// 募集のツイートかどうかを判定する単語
+	const isClubDecideWord = "募集"
 
 	// 認証
 	creds := credentials.NewStaticCredentials(os.Getenv("AWS_ACCEESS_KEY"), os.Getenv("AWS_SECRET_ACCEESS_KEY"), "") //第３引数はtoken
@@ -80,18 +87,37 @@ func crawlTweets() {
 
 	for _, tweet := range searchResult.Statuses {
 		tweetedTime, _ := time.Parse(layout, tweet.CreatedAt)
-		// リツイートされたものはfull_textでも'RT <ユーザ名>'が入って省略されてしまうので、その判定
+		// リツイートされたものは除く
 		if tweet.RetweetedStatus == nil {
-			newTweet := Tweet{tweet.Id, tweet.FullText, tweetedTime.Unix(), User{tweet.User.Id, tweet.User.Name}}
+			newTweet := Tweet{
+				tweet.Id,
+				tweet.FullText,
+				tweetedTime.Unix(),
+				strings.Contains(tweet.FullText, isClubDecideWord),
+				searchPositions(tweet.FullText),
+				User{
+					tweet.User.Id,
+					tweet.User.Name,
+				},
+			}
+
 			if err := table.Put(newTweet).Run(); err != nil {
 				log.Println(err.Error())
 			} else {
-				unix := tweetedTime.Unix()
-				log.Println(time.Unix(unix, 0))
 				log.Println("成功！")
 			}
 		} else {
-			newTweet := Tweet{tweet.Id, tweet.RetweetedStatus.FullText, tweetedTime.Unix(), User{tweet.User.Id, tweet.User.Name}}
+			newTweet := Tweet{
+				tweet.RetweetedStatus.Id,
+				tweet.RetweetedStatus.FullText,
+				tweetedTime.Unix(),
+				strings.Contains(tweet.FullText, isClubDecideWord),
+				searchPositions(tweet.FullText),
+				User{
+					tweet.User.Id,
+					tweet.User.Name,
+				},
+			}
 			if err := table.Put(newTweet).Run(); err != nil {
 				log.Println(err.Error())
 			} else {
@@ -126,6 +152,23 @@ func crawlTweets() {
 		}
 		fmt.Println("delete tweetID: ", tweets[i].ID)
 	}
+
+	searchPositions("本日22時半から1時間ほど体験募集してます。\n\n募集ポジション　CM CDM CB\n\nDMお待ちしております。\n#FIFA21  #プロクラブ")
+}
+
+func searchPositions(text string) []string {
+	r := regexp.MustCompile(`ST|RW|LW|CF|LM|CM|CDM|CAM|RM|LB|CB|RB|GK`)
+	foundPositions := []string{}
+	results := r.FindAllStringSubmatch(text, -1)
+
+	// [][]stringで返ってくるので[]stringに直す
+	for _, result := range results {
+		for _, word := range result {
+			foundPositions = append(foundPositions, word)
+		}
+	}
+	log.Println(foundPositions)
+	return foundPositions
 }
 
 func main() {

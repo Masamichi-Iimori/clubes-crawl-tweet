@@ -38,7 +38,7 @@ type Tweet struct {
 // Tweets 構造体のスライス
 type Tweets []Tweet
 
-// 以下インタフェースを渡してTweetIDでソート可能にするｓ
+// 以下インタフェースを渡してTweetedAtでソート可能にする
 func (t Tweets) Len() int {
 	return len(t)
 }
@@ -48,7 +48,7 @@ func (t Tweets) Swap(i, j int) {
 }
 
 func (t Tweets) Less(i, j int) bool {
-	return t[i].ID < t[j].ID
+	return t[i].TweetedAt < t[j].TweetedAt
 }
 
 func crawlTweets() {
@@ -87,7 +87,7 @@ func crawlTweets() {
 
 	for _, tweet := range searchResult.Statuses {
 		tweetedTime, _ := time.Parse(layout, tweet.CreatedAt)
-		// リツイートされたものは除く
+		// リツイートされたものは日付だけアップデート
 		if tweet.RetweetedStatus == nil {
 			newTweet := Tweet{
 				tweet.Id,
@@ -101,7 +101,7 @@ func crawlTweets() {
 				},
 			}
 
-			if err := table.Put(newTweet).Run(); err != nil {
+			if err := table.Put(newTweet).If("attribute_not_exists(tweet_id)").Run(); err != nil {
 				log.Println(err.Error())
 			} else {
 				log.Println("成功！")
@@ -112,17 +112,19 @@ func crawlTweets() {
 				tweet.RetweetedStatus.FullText,
 				tweetedTime.Unix(),
 				strings.Contains(tweet.FullText, isClubDecideWord),
-				searchPositions(tweet.FullText),
+				searchPositions(tweet.RetweetedStatus.FullText),
 				User{
 					tweet.User.Id,
 					tweet.User.Name,
 				},
 			}
+
 			if err := table.Put(newTweet).Run(); err != nil {
 				log.Println(err.Error())
 			} else {
 				log.Println("成功！")
 			}
+			log.Println("retweet")
 		}
 	}
 
@@ -144,7 +146,6 @@ func crawlTweets() {
 
 	for i := 0; i < willDeleteCount; i++ {
 		err := table.Delete("tweet_id", tweets[i].ID).
-			Range("tweeted_at", tweets[i].TweetedAt).
 			Run()
 		if err != nil {
 			fmt.Println("err")
@@ -153,11 +154,10 @@ func crawlTweets() {
 		fmt.Println("delete tweetID: ", tweets[i].ID)
 	}
 
-	searchPositions("本日22時半から1時間ほど体験募集してます。\n\n募集ポジション　CM CDM CB\n\nDMお待ちしております。\n#FIFA21  #プロクラブ")
 }
 
 func searchPositions(text string) []string {
-	r := regexp.MustCompile(`ST|RW|LW|CF|LM|CM|CDM|CAM|RM|LB|CB|RB|GK`)
+	r := regexp.MustCompile(`ST|RW|LW|CF|LM|CM|DM|CAM|RM|LB|CB|RB|GK`)
 	foundPositions := []string{}
 	results := r.FindAllStringSubmatch(text, -1)
 

@@ -114,8 +114,8 @@ func crawlTweets() {
 				strings.Contains(tweet.FullText, isClubDecideWord),
 				searchPositions(tweet.RetweetedStatus.FullText),
 				User{
-					tweet.User.Id,
-					tweet.User.Name,
+					tweet.RetweetedStatus.User.Id,
+					tweet.RetweetedStatus.User.Name,
 				},
 			}
 
@@ -124,7 +124,6 @@ func crawlTweets() {
 			} else {
 				log.Println("成功！")
 			}
-			log.Println("retweet")
 		}
 	}
 
@@ -157,7 +156,7 @@ func crawlTweets() {
 }
 
 func searchPositions(text string) []string {
-	r := regexp.MustCompile(`ST|RW|LW|CF|LM|CM|DM|CAM|RM|LB|CB|RB|GK`)
+	r := regexp.MustCompile(`ST|RW|LW|CF|LM|CM|CDM|CAM|RM|LB|CB|RB|GK`)
 	foundPositions := []string{}
 	results := r.FindAllStringSubmatch(text, -1)
 

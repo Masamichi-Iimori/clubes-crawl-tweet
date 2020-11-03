@@ -1,5 +1,8 @@
 # clubes-crawltweet
-
+ 
+TwitterAPIを使って、dynamoDBにツイートを入れる処理をするsamプロジェクト
+５分に一回lambda関数が実行され、プロクラブの募集ツイートを検索し、募集ポジションを検索してdynamoDBに保存します。
+ 
 This is a sample template for clubes-crawltweet - Below is a brief explanation of what we have generated for you:
 
 ```bash

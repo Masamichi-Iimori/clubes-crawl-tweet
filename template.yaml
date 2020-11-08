@@ -37,12 +37,6 @@ Resources:
           Type: Schedule
           Properties:
             Schedule: cron(0/5 * * * ? *)
-      # Events:
-      #   CatchAll:
-      #     Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-      #     Properties:
-      #       Path: /tweets
-      #       Method: GET
       Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
         Variables:
           AWS_ACCEESS_KEY: !Ref AwsAccessKey

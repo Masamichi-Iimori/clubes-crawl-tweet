@@ -21,8 +21,9 @@ import (
 
 // User つぶやいたユーザ情報
 type User struct {
-	ID   int64  `dynamo:"id"`
-	Name string `dynamo:"name"`
+	ID         int64  `dynamo:"id"`
+	Name       string `dynamo:"name"`
+	ScreenName string `dynamo:"screen_name"`
 }
 
 // Tweet 参加を募集するツイート
@@ -31,7 +32,7 @@ type Tweet struct {
 	FullText  string   `dynamo:"full_text"`
 	TweetedAt int64    `dynamo:"tweeted_at"` //dynamodbでソート出来るようにUNIX時間
 	IsClub    bool     `dynamo:"is_club"`
-	Positions []string `dynamo:"postion"`
+	Positions []string `dynamo:"position"`
 	User      User     `dynamo:"user"`
 }
 
@@ -86,6 +87,7 @@ func crawlTweets() {
 	var layout = "Mon Jan 2 15:04:05 +0000 2006"
 
 	for _, tweet := range searchResult.Statuses {
+		log.Println(tweet.User.ScreenName)
 		tweetedTime, _ := time.Parse(layout, tweet.CreatedAt)
 		// リツイートされたものは日付だけアップデート
 		if tweet.RetweetedStatus == nil {
@@ -98,6 +100,7 @@ func crawlTweets() {
 				User{
 					tweet.User.Id,
 					tweet.User.Name,
+					tweet.User.ScreenName,
 				},
 			}
 
@@ -116,6 +119,7 @@ func crawlTweets() {
 				User{
 					tweet.RetweetedStatus.User.Id,
 					tweet.RetweetedStatus.User.Name,
+					tweet.User.ScreenName,
 				},
 			}
 

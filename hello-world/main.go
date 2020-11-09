@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,6 +34,7 @@ type Tweet struct {
 	TweetedAt int64    `dynamo:"tweeted_at"` //dynamodbでソート出来るようにUNIX時間
 	IsClub    bool     `dynamo:"is_club"`
 	Positions []string `dynamo:"position"`
+	MediaURLs []string `dynamo:"media_url"`
 	User      User     `dynamo:"user"`
 }
 
@@ -52,6 +54,18 @@ func (t Tweets) Less(i, j int) bool {
 	return t[i].TweetedAt < t[j].TweetedAt
 }
 
+// NewTweet Tweetのメンバを初期化する関数
+func NewTweet() Tweet {
+	tweet := Tweet{}
+	tweet.ID = 0
+	tweet.FullText = ""
+	tweet.TweetedAt = 0
+	tweet.IsClub = false
+	tweet.Positions = []string{}
+	tweet.User = User{}
+	tweet.MediaURLs = []string{}
+	return tweet
+}
 func crawlTweets() {
 
 	// dynamoDBに保存しておくツイート数
@@ -87,21 +101,33 @@ func crawlTweets() {
 	var layout = "Mon Jan 2 15:04:05 +0000 2006"
 
 	for _, tweet := range searchResult.Statuses {
-		log.Println(tweet.User.ScreenName)
+
+		// 画像や動画などのメディアのURLを配列に入れる
+		mediaURLs := []string{}
+
+		newTweet := NewTweet()
 		tweetedTime, _ := time.Parse(layout, tweet.CreatedAt)
+
 		// リツイートされたものは日付だけアップデート
 		if tweet.RetweetedStatus == nil {
-			newTweet := Tweet{
-				tweet.Id,
-				tweet.FullText,
-				tweetedTime.Unix(),
-				strings.Contains(tweet.FullText, isClubDecideWord),
-				searchPositions(tweet.FullText),
-				User{
-					tweet.User.Id,
-					tweet.User.Name,
-					tweet.User.ScreenName,
-				},
+			// メディアのURLを本文から削除
+			fullTextRemovedURL := tweet.FullText
+
+			for _, url := range tweet.Entities.Urls {
+				mediaURLs = append(mediaURLs, url.Expanded_url)
+				fullTextRemovedURL = strings.Replace(fullTextRemovedURL, url.Url, "", -1)
+			}
+			tweetID, _ := strconv.ParseInt(tweet.IdStr, 10, 64)
+			newTweet.ID = tweetID
+			newTweet.FullText = fullTextRemovedURL
+			newTweet.TweetedAt = tweetedTime.Unix()
+			newTweet.IsClub = strings.Contains(fullTextRemovedURL, isClubDecideWord)
+			newTweet.Positions = searchPositions(fullTextRemovedURL)
+			newTweet.MediaURLs = mediaURLs
+			newTweet.User = User{
+				tweet.User.Id,
+				tweet.User.Name,
+				tweet.User.ScreenName,
 			}
 
 			if err := table.Put(newTweet).If("attribute_not_exists(tweet_id)").Run(); err != nil {
@@ -110,17 +136,24 @@ func crawlTweets() {
 				log.Println("成功！")
 			}
 		} else {
-			newTweet := Tweet{
-				tweet.RetweetedStatus.Id,
-				tweet.RetweetedStatus.FullText,
-				tweetedTime.Unix(),
-				strings.Contains(tweet.FullText, isClubDecideWord),
-				searchPositions(tweet.RetweetedStatus.FullText),
-				User{
-					tweet.RetweetedStatus.User.Id,
-					tweet.RetweetedStatus.User.Name,
-					tweet.User.ScreenName,
-				},
+			fullTextRemovedURL := tweet.RetweetedStatus.FullText
+
+			for _, url := range tweet.RetweetedStatus.Entities.Urls {
+				mediaURLs = append(mediaURLs, url.Expanded_url)
+				fullTextRemovedURL = strings.Replace(fullTextRemovedURL, url.Url, "", -1)
+			}
+			tweetID, _ := strconv.ParseInt(tweet.RetweetedStatus.IdStr, 10, 64)
+
+			newTweet.ID = tweetID
+			newTweet.FullText = fullTextRemovedURL
+			newTweet.TweetedAt = tweetedTime.Unix()
+			newTweet.IsClub = strings.Contains(fullTextRemovedURL, isClubDecideWord)
+			newTweet.Positions = searchPositions(fullTextRemovedURL)
+			newTweet.MediaURLs = mediaURLs
+			newTweet.User = User{
+				tweet.RetweetedStatus.User.Id,
+				tweet.RetweetedStatus.User.Name,
+				tweet.RetweetedStatus.User.ScreenName,
 			}
 
 			if err := table.Put(newTweet).Run(); err != nil {
@@ -159,6 +192,7 @@ func crawlTweets() {
 
 }
 
+// 募集ツイートから募集しているポジションを探す
 func searchPositions(text string) []string {
 	r := regexp.MustCompile(`ST|RW|LW|CF|LM|CM|CDM|CAM|RM|LB|CB|RB|GK`)
 	foundPositions := []string{}
@@ -170,7 +204,6 @@ func searchPositions(text string) []string {
 			foundPositions = append(foundPositions, word)
 		}
 	}
-	log.Println(foundPositions)
 	return foundPositions
 }
 

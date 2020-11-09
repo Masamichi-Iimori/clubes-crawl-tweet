@@ -25,7 +25,7 @@ Resources:
   CrawlTweetFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://clubes-crawltweet/5872b52fdcee6ffa20d3f379e55a7a68
+      CodeUri: s3://clubes-crawltweet/30c2e2bd70b19d41fa56526ad705f88a
       Handler: hello-world
       Runtime: go1.x
       Tracing: Active

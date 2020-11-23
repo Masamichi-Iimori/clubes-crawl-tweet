@@ -117,6 +117,7 @@ func crawlTweets() {
 				mediaURLs = append(mediaURLs, url.Expanded_url)
 				fullTextRemovedURL = strings.Replace(fullTextRemovedURL, url.Url, "", -1)
 			}
+			log.Println(tweet.Entities.Urls)
 			tweetID, _ := strconv.ParseInt(tweet.IdStr, 10, 64)
 			newTweet.ID = tweetID
 			newTweet.FullText = fullTextRemovedURL
@@ -142,6 +143,8 @@ func crawlTweets() {
 				mediaURLs = append(mediaURLs, url.Expanded_url)
 				fullTextRemovedURL = strings.Replace(fullTextRemovedURL, url.Url, "", -1)
 			}
+			log.Println(tweet.Entities.Urls)
+
 			tweetID, _ := strconv.ParseInt(tweet.RetweetedStatus.IdStr, 10, 64)
 
 			newTweet.ID = tweetID
@@ -194,7 +197,7 @@ func crawlTweets() {
 
 // 募集ツイートから募集しているポジションを探す
 func searchPositions(text string) []string {
-	r := regexp.MustCompile(`ST|RW|LW|CF|LM|CM|CDM|CAM|RM|LB|CB|RB|GK`)
+	r := regexp.MustCompile(`ST|RW|LW|CF|LM|CM|CDM|CAM|RM|LB|CB|RB|GK|SB|WG|DF|ディフェンダー`)
 	foundPositions := []string{}
 	results := r.FindAllStringSubmatch(text, -1)
 
@@ -202,6 +205,17 @@ func searchPositions(text string) []string {
 	for _, result := range results {
 		for _, word := range result {
 			foundPositions = append(foundPositions, word)
+			if word == "SB" {
+				foundPositions = append(foundPositions, "RB")
+				foundPositions = append(foundPositions, "LB")
+			} else if word == "WG" {
+				foundPositions = append(foundPositions, "RW")
+				foundPositions = append(foundPositions, "LW")
+			} else if word == "DF" || word == "ディフェンダー" {
+				foundPositions = append(foundPositions, "RB")
+				foundPositions = append(foundPositions, "LB")
+				foundPositions = append(foundPositions, "CB")
+			}
 		}
 	}
 	return foundPositions

@@ -66,6 +66,19 @@ func NewTweet() Tweet {
 	tweet.MediaURLs = []string{}
 	return tweet
 }
+
+func uniq(strSlice []string) []string {
+	m := make(map[string]bool)
+	uniq := []string{}
+
+	for _, ele := range strSlice {
+		if !m[ele] {
+			m[ele] = true
+			uniq = append(uniq, ele)
+		}
+	}
+	return uniq
+}
 func crawlTweets() {
 
 	// dynamoDBに保存しておくツイート数
@@ -204,7 +217,6 @@ func searchPositions(text string) []string {
 	// [][]stringで返ってくるので[]stringに直す
 	for _, result := range results {
 		for _, word := range result {
-			foundPositions = append(foundPositions, word)
 			if word == "SB" {
 				foundPositions = append(foundPositions, "RB")
 				foundPositions = append(foundPositions, "LB")
@@ -215,10 +227,14 @@ func searchPositions(text string) []string {
 				foundPositions = append(foundPositions, "RB")
 				foundPositions = append(foundPositions, "LB")
 				foundPositions = append(foundPositions, "CB")
+			} else {
+				foundPositions = append(foundPositions, word)
 			}
 		}
 	}
-	return foundPositions
+
+	// 重複削除して返す
+	return uniq(foundPositions)
 }
 
 func main() {

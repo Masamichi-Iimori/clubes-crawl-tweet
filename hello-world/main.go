@@ -123,14 +123,20 @@ func crawlTweets() {
 
 		// リツイートされたものは日付だけアップデート
 		if tweet.RetweetedStatus == nil {
+			log.Println("--------------------------------------------")
+			log.Println(tweet.ExtendedEntities.Media)
+			log.Println(tweet.FullText)
+			log.Println("============================================")
 			// メディアのURLを本文から削除
 			fullTextRemovedURL := tweet.FullText
-
-			for _, url := range tweet.Entities.Urls {
-				mediaURLs = append(mediaURLs, url.Expanded_url)
-				fullTextRemovedURL = strings.Replace(fullTextRemovedURL, url.Url, "", -1)
+			for _, media := range tweet.ExtendedEntities.Media {
+				if strings.Contains(media.Media_url_https, "pbs.twimg.com") {
+					mediaURLs = append(mediaURLs, media.Media_url_https)
+				}
+				fullTextRemovedURL = strings.Replace(fullTextRemovedURL, media.Media_url_https, "", -1)
 			}
-			log.Println(tweet.Entities.Urls)
+
+			log.Println(tweet.Entities)
 			tweetID, _ := strconv.ParseInt(tweet.IdStr, 10, 64)
 			newTweet.ID = tweetID
 			newTweet.FullText = fullTextRemovedURL
@@ -151,12 +157,19 @@ func crawlTweets() {
 			}
 		} else {
 			fullTextRemovedURL := tweet.RetweetedStatus.FullText
+			log.Println("--------------------------------------------")
+			log.Println(tweet.RetweetedStatus.IdStr)
+			log.Println(tweet.Entities.Media)
+			log.Println(tweet.FullText)
+			log.Println("============================================")
 
-			for _, url := range tweet.RetweetedStatus.Entities.Urls {
-				mediaURLs = append(mediaURLs, url.Expanded_url)
-				fullTextRemovedURL = strings.Replace(fullTextRemovedURL, url.Url, "", -1)
+			for _, media := range tweet.RetweetedStatus.ExtendedEntities.Media {
+				if strings.Contains(media.Media_url_https, "pbs.twimg.com") {
+					mediaURLs = append(mediaURLs, media.Media_url_https)
+
+				}
+				fullTextRemovedURL = strings.Replace(fullTextRemovedURL, media.Media_url_https, "", -1)
 			}
-			log.Println(tweet.Entities.Urls)
 
 			tweetID, _ := strconv.ParseInt(tweet.RetweetedStatus.IdStr, 10, 64)
 
